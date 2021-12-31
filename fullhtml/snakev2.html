@@ -1,0 +1,189 @@
+<html>
+ 
+    <head>
+        <script type="text/javascript">
+ 
+var cell_width = 20;
+var playerCharacter;
+ 
+function startGame() {
+    myGameArea = myGameArea(800, 600, 20);
+    myGameArea.start();
+    //myGamePiece = new component( "darkblue", 5, 5);
+    playerCharacter = Snake(5,5,"darkblue");
+    playerCharacter.grow()
+    playerCharacter.grow()
+    playerCharacter.grow()
+ 
+}
+ 
+var myGameArea = function (width, height, cell_width){
+    let gameBoard = {canvas : document.createElement("canvas"),  gridSize : cell_width, keys : [],
+                    
+        start : function (){
+            this.render_loop = setInterval(renderGameArea, 20);
+            this.update_loop = setInterval(updateGameArea(), 100);
+            window.addEventListener("keydown", this.onKeyDown.bind(this), false);
+        }, render : function  (){
+            this.context.strokeStyle = 'black';
+            this.context.strokeRect(0,0,this.canvas.width, this.canvas.height);
+        },
+        clear: function() {
+            this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        },
+        onKeyDown : function (event) {
+            if (!this.keys.includes(event.key)){
+                this.keys.unshift(event.key);
+            }
+        }
+    }
+    gameBoard.canvas.width = width;
+    gameBoard.canvas.height = height;
+    gameBoard.context = gameBoard.canvas.getContext('2d');
+    document.body.insertBefore(gameBoard.canvas, document.body.childNodes[0]);
+    return gameBoard;
+ 
+}
+ 
+ 
+var Snake = function (x, y, color, length=1){
+    
+    var SnakePart = function (x,y,clr=color){
+        var padding = 1;
+        return {
+            x : x,
+            y : y,
+            color : clr,
+            render : function (ctx){
+                ctx.fillStyle = this.color;
+                ctx.fillRect((this.x * cell_width)+padding, (this.y * cell_width)+padding, cell_width - (padding * 2), cell_width- (padding * 2));
+                if (this.next != null){
+                    this.next.render(ctx);
+                }
+            },
+        }
+    }
+ 
+    let re = {
+        color: color,
+        direction : 1,
+        parts : [SnakePart (x,y)],
+        render : function (ctx){
+            this.parts.forEach(function (part) { part.render(ctx)});
+        },
+        changeDirection : function (newDirection ) {
+            // Don't allow 180 degree turns
+            if ((this.direction != (newDirection + 2)%4) ){
+                this.direction = newDirection;
+                return true;
+            }else{
+                return false;
+            }
+        },  
+        update : function (){
+            var modifiers = [[-1, 0, 'left'], [0,-1, 'up'], [1, 0, 'right'], [0,1,'down']];
+            var newX = this.parts[0].x + modifiers[this.direction][0]
+            var newY = this.parts[0].y + modifiers[this.direction][1]
+            //console.log('moving', modifiers[this.direction][2]);
+            this.parts.unshift(SnakePart(newX, newY));
+            this.parts.pop();
+        },
+        grow : function (){
+            var end = this.parts[this.parts.length-1];
+            var modifiers = [[-1, 0, 'left'], [0,-1, 'up'], [1, 0, 'right'], [0,1,'down']];
+ 
+            if (this.parts.length < 2){
+                this.parts.push(SnakePart (end.x+modifiers[(this.direction+2)%4][0], end.y + modifiers[(this.direction+2)%4][1], this.color));
+            }else{
+                var next = this.parts[this.parts.length-2];
+                var diff = [end.x - next.x, end.y - next.y]
+                console.log('diff', diff);
+                this.parts.push(SnakePart(end.x + diff[0], end.y + diff[1]));
+ 
+            }
+        }
+    }
+    for (let i=0; i<length-1; i++){re.grow()} 
+    return re;
+}
+ 
+function checkCollision(x1, y1, w1, h1, x2, y2, w2, h2){
+    // Returns true if rect 1 overlaps rect 2
+    // console.log('checking: ', x1, y1, x1+w1, y1+h1, 'vs', x2,y2, x2+w2, y2+h2);
+    if (x1 + w1 <= x2 || x1 >= x2 + w2 || y1 >= y2 + h2 || y1 + h1 <= y2){
+        return false
+    }else{
+        return true
+    }
+}
+ 
+ 
+function updateGameArea() {
+    var count = 0;
+    var alive = true;
+ 
+ 
+    return function (){
+        if (alive){
+            let keyMap = {a : {direction : 0},d : {direction : 2},w : {direction : 1},s : {direction : 3}}
+            let key = myGameArea.keys.pop();
+            while (key != null){
+                if (!Object.keys(keyMap).includes(key)){key = myGameArea.keys.pop(); continue;}
+                else if (!playerCharacter.changeDirection(keyMap[key].direction)){
+                    key = myGameArea.keys.pop(); continue;
+                }else{
+                    break;
+                }
+                 
+            }
+            if (key != null && Object.keys(keyMap).includes(key)){
+                playerCharacter.changeDirection(keyMap[key].direction)
+            }
+            playerCharacter.update()
+            if (count % 10 == 0){
+                playerCharacter.grow()
+            }
+            
+ 
+            // check if in game area
+            if (!checkCollision(playerCharacter.parts[0].x*cell_width, playerCharacter.parts[0].y*cell_width, cell_width, cell_width, 0, 0, myGameArea.canvas.width, myGameArea.canvas.height )){
+                alive=false;
+            }
+            // Check if eating self
+            let selfCanibalization = false;
+            let p0 = playerCharacter.parts[0];
+            for (let i = 1; i< playerCharacter.parts.length; i++){
+                let p1 = playerCharacter.parts[i];
+                if (checkCollision(p0.x*cell_width, p0.y*cell_width, cell_width, cell_width, p1.x*cell_width, p1.y*cell_width, cell_width, cell_width)){
+                    selfCanibalization = true;
+                    break
+                }
+            }
+            if (selfCanibalization){
+                console.log("oh no! you ate yourself");
+                alive = false;
+            }
+ 
+            count += 1;
+        }
+        else{
+            console.log('super dead');
+        }
+    }
+} 
+ 
+function renderGameArea() {
+    myGameArea.clear();
+    myGameArea.render();
+ 
+    playerCharacter.render(myGameArea.context);
+}
+window.onload = function (){
+ 
+    startGame();
+}
+        </script>
+    </haed>
+    <body>
+    </body>
+</html>
