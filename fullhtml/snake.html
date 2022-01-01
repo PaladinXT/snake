@@ -28,18 +28,23 @@
 
         var screen = {
             canvas: document.createElement("canvas"),
+            directions: [],
             start: function () {
                 this.canvas.width = screenSize;
                 this.canvas.height = screenSize;
                 this.context = this.canvas.getContext("2d");
                 document.body.insertBefore(this.canvas, document.body.childNodes[0]);
                 this.interval = setInterval(updateGame, 140)
-                window.addEventListener("keydown", function (event) {
-                    screen.key = event.key;
-                });
+                window.addEventListener("keydown", this.onKeyDown.bind(this), false)
             },
             clear: function () {
                 this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+            },
+            onKeyDown: function (event) {
+                if (event.key === "a") { this.directions.unshift("left") }
+                if (event.key === "d") { this.directions.unshift("right") }
+                if (event.key === "w") { this.directions.unshift("up") }
+                if (event.key === "s") { this.directions.unshift("down") }
             }
         }
 
@@ -54,10 +59,7 @@
         function updateGame() {
             screen.clear();
             food.draw();
-            if (screen.key === "a") { snake.setDirection("left"); }
-            if (screen.key === "d") { snake.setDirection("right"); }
-            if (screen.key === "w") { snake.setDirection("up"); }
-            if (screen.key === "s") { snake.setDirection("down"); }
+            if (screen.directions.length > 0) { snake.setDirection(screen.directions.pop()) }
             snake.move();
             snake.draw();
             if (checkCollision(snake.head.x, snake.head.y, snake.segmentSize, food.x, food.y, food.size)) {
